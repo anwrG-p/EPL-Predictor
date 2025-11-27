@@ -1,0 +1,21 @@
+=== FILE: .gitignore ===
+# Project structure
+/backend/models_store/
+/backend/data/*.csv
+/backend/backend.db
+/backend/__pycache__
+/backend/.pytest_cache
+/backend/reports/
+/backend/alembic/
+
+# Python
+*.pyc
+venv/
+.env
+
+# Node
+/frontend/node_modules
+/frontend/dist
+
+# Docker
+.DS_Store

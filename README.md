@@ -1,30 +1,24 @@
-# EPL-Predictor
-# Overview
+# EPL Match Predictor Platform
 
-This is a personal project exploring how well AI can predict English Premier League (EPL) match outcomes. Using historical match data from 1993 to 2024, this project aims to:
-Test the boundaries of AI prediction in sports.
+A production-ready full-stack application to predict English Premier League match outcomes using Machine Learning (RandomForest, XGBoost, Logistic Regression, Ensemble).
 
-Learn and research machine learning workflows, including feature engineering, neural networks, and model calibration.
-The model predicts whether the home team will win, the match will draw, or the away team will win.
+## Features
+- **ML Pipeline**: Automated data fetching, Elo calculation, feature engineering, and Optuna hyperparameter tuning.
+- **Explainability**: SHAP value integration for prediction transparency.
+- **Simulations**: Monte Carlo simulation for match and season outcomes.
+- **Security**: JWT Auth, Rate Limiting (30 req/day) with unlimited Admin override.
+- **DevOps**: Dockerized, CI/CD via GitHub Actions for daily re-training.
 
-# Features
+## Installation & Running
 
-Time-aware train/validation/test splits
-Embeddings for categorical features and MLP for numeric inputs
-Temperature scaling for calibrated probability predictions
-Evaluation with log loss, accuracy, and Brier score
-Simple betting backtest against implied bookmaker probabilities
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 18+ (for local frontend dev)
+- Python 3.11+ (for local backend dev)
 
-# Technologies
-
-Python 3.x
-PyTorch
-NumPy, Pandas, scikit-learn
-tqdm for progress bars
-
-# Learning Goals
-
-Structuring a full ML workflow for tabular data
-Neural network experimentation for prediction tasks
-Model calibration techniques
-Applying ML to real-world sports data
+### Quick Start (Docker)
+1. Clone repo.
+2. Copy env: `cp .env.example .env`
+3. Build and run:
+   ```bash
+   docker-compose up --build

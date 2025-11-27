@@ -1,110 +1,120 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { settings } from '../../vite.config'; // Dummy import to show reliance on config/env
+import { useNavigate } from 'react-router-dom';
 
-export default function AdminPanel() {
-  const [stats, setStats] = useState(null);
-  const [seasonSim, setSeasonSim] = useState([]);
-  const [loading, setLoading] = useState(false);
+// NOTE on API_URL: In a production environment (like GitHub Pages),
+// you MUST replace 'http://localhost:8000' with your live backend URL (e.g., https://your-fastapi-app.com).
+// For local Docker use, 'http://localhost:8000' is correct.
+const API_URL = 'http://localhost:8000';
+
+const AdminPanel = ({ isAdmin, token }) => {
   const [retrainStatus, setRetrainStatus] = useState('');
-  
-  const token = localStorage.getItem('token');
-  const API_URL = 'http://localhost:8000';
+  const [healthStatus, setHealthStatus] = useState('Checking...');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  // Redirect if not logged in or not admin
+  useEffect(() => {
+    if (!token || !isAdmin) {
+      navigate('/login');
+    }
+  }, [isAdmin, token, navigate]);
+
+  const handleRetrainModel = async () => {
+    setRetrainStatus('Training...');
+    setError('');
+    try {
+      const response = await axios.post(`${API_URL}/admin/retrain`, null, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        timeout: 600000, // 10 minutes timeout for long training process
+      });
+      setRetrainStatus(`Training Complete! ${response.data.message}`);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.detail || 'Retraining failed. Check backend logs.');
+      setRetrainStatus('Failed');
+    }
+  };
+
+  const checkSystemHealth = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/admin/health`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setHealthStatus(response.data.status);
+    } catch (err) {
+      console.error(err);
+      setHealthStatus('System Down or Unauthorized');
+    }
+  };
 
   useEffect(() => {
-    fetchStats();
-    fetchSeasonSim();
-  }, []);
-
-  const fetchStats = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } });
-      setStats(res.data);
-    } catch (err) {
-      console.error("Failed to fetch admin stats:", err);
+    if (isAdmin && token) {
+      checkSystemHealth();
     }
-  };
+  }, [isAdmin, token]);
 
-  const fetchSeasonSim = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(`${API_URL}/simulate-season?rounds=500`, { headers: { Authorization: `Bearer ${token}` } });
-      setSeasonSim(res.data);
-    } catch (err) {
-      console.error("Failed to fetch season simulation:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRetrain = async () => {
-    setRetrainStatus('Training...');
-    try {
-      const res = await axios.post(`${API_URL}/admin/retrain`, {}, { headers: { Authorization: `Bearer ${token}` } });
-      setRetrainStatus(`Success: ${res.data.metrics.status}. Reloading new model.`);
-    } catch (err) {
-      setRetrainStatus('Failed to retrain model. Check backend logs.');
-      console.error(err);
-    }
-  };
+  if (!isAdmin) {
+    return null; // Should redirect, but just in case
+  }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">📊 Admin Dashboard</h1>
-      
-      {/* Configuration & Controls */}
-      <div className="bg-white p-6 shadow rounded mb-8 flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold mb-2">Model Management</h2>
-          <p>Current Model Type: <span className="font-mono text-indigo-600">{settings.VITE_MODEL_TYPE || 'ensemble'}</span> (Set via ENV)</p>
-        </div>
-        <button onClick={handleRetrain} className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 transition disabled:opacity-50" disabled={retrainStatus === 'Training...'}>
-          {retrainStatus || 'Trigger Full Retrain'}
+    <div className="p-8 max-w-2xl mx-auto bg-gray-900 rounded-xl shadow-2xl">
+      <h2 className="text-3xl font-extrabold text-white mb-6 border-b border-indigo-600 pb-2">
+        🛠️ Admin Control Panel
+      </h2>
+
+      {/* System Health Status */}
+      <div className="mb-8 p-4 bg-gray-800 rounded-lg">
+        <h3 className="text-xl font-semibold text-indigo-400 mb-2">System Health</h3>
+        <p className={`text-lg font-mono ${healthStatus === 'OK' ? 'text-green-400' : 'text-yellow-400'}`}>
+          Status: {healthStatus}
+        </p>
+        <button
+          onClick={checkSystemHealth}
+          className="mt-3 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition"
+        >
+          Refresh Health Check
         </button>
       </div>
 
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-blue-50 p-6 rounded shadow">
-            <p className="text-sm text-blue-600">Total Predictions</p>
-            <p className="text-3xl font-extrabold">{stats.total_predictions}</p>
-          </div>
-          <div className="bg-blue-50 p-6 rounded shadow">
-            <p className="text-sm text-blue-600">Last Retrain</p>
-            <p className="text-3xl font-extrabold">N/A (See logs)</p>
-          </div>
-          <div className="bg-blue-50 p-6 rounded shadow">
-            <p className="text-sm text-blue-600">Admin Email</p>
-            <p className="text-md font-mono">{settings.VITE_ADMIN_EMAIL || 'anouarguemri1@gmail.com'}</p>
-          </div>
-        </div>
-      )}
+      {/* Model Retraining Section */}
+      <div className="p-4 bg-gray-800 rounded-lg">
+        <h3 className="text-xl font-semibold text-indigo-400 mb-4">Model Retraining (MLOps)</h3>
+        <p className="text-gray-400 mb-4">
+          Fetch the latest EPL data, re-engineer features (Elo/Form), re-tune, and save the updated model artifact. This may take several minutes.
+        </p>
+        
+        <button
+          onClick={handleRetrainModel}
+          disabled={retrainStatus === 'Training...'}
+          className={`w-full px-6 py-3 text-lg font-bold text-white rounded-lg transition ${
+            retrainStatus === 'Training...'
+              ? 'bg-yellow-600 cursor-not-allowed'
+              : 'bg-green-600 hover:bg-green-700'
+          }`}
+        >
+          {retrainStatus === 'Training...' ? 'Processing...' : 'Trigger Model Retrain'}
+        </button>
 
-      {/* Season Simulation Results */}
-      <h2 className="text-2xl font-bold mb-4">🏆 Season Simulation (500 Rounds)</h2>
-      {loading ? (
-        <p>Running Monte Carlo simulation...</p>
-      ) : (
-        <div className="bg-white p-6 shadow rounded">
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={seasonSim}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="Team" angle={-45} textAnchor="end" height={100} interval={0} />
-              <YAxis domain={[1, 20]} reversed={true} label={{ value: 'Average Final Rank', angle: -90, position: 'insideLeft' }} />
-              <Tooltip formatter={(value) => [`Rank: ${value.toFixed(2)}`, 'Team']} />
-              <Legend />
-              <Bar dataKey="Avg_Final_Rank" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+        {retrainStatus && retrainStatus !== 'Failed' && (
+          <p className="mt-4 text-center text-green-400 font-medium">
+            {retrainStatus}
+          </p>
+        )}
+
+        {error && (
+          <div className="mt-4 p-3 bg-red-800/50 border border-red-500 rounded text-red-300">
+            Error: {error}
+          </div>
+        )}
+      </div>
     </div>
   );
-}
+};
 
-// NOTE: Vite config doesn't actually expose environment vars like this in a build.
-// In a real app, these specific settings (MODEL_TYPE, ADMIN_EMAIL) should be 
-// fetched from a dedicated backend `/config` endpoint or hardcoded if non-sensitive.
-// For this repo, we mimic the access for instructional clarity.
+export default AdminPanel;

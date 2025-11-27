@@ -1,0 +1,53 @@
+name: Daily Model Retrain & Update
+
+on:
+  schedule:
+    # Run at 02:00 UTC daily
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  train-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+      
+      - name: Configure Admin Secrets (for environment access)
+        run: |
+          echo "FASTAPI_SECRET_KEY=${{ secrets.FASTAPI_SECRET_KEY }}" >> .env
+          echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> .env
+          echo "MODEL_TYPE=${{ secrets.MODEL_TYPE }}" >> .env
+        shell: bash
+        working-directory: ./backend
+
+      - name: Run Retraining Script
+        # Pass essential environment variables
+        env:
+          DATABASE_URL: "sqlite:///backend/backend.db"
+          MODEL_TYPE: "${{ secrets.MODEL_TYPE }}"
+        run: |
+          cd backend
+          python scripts/train_manual.py
+
+      - name: Commit and Push Model Artifacts
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          # Stage and commit updated artifacts
+          git add backend/models_store/*.pkl
+          git add backend/data/*.csv
+          git add backend/reports/shap/*.png
+          git commit -m "Auto-update: Retrained ${{ secrets.MODEL_TYPE }} model and data $(date +'%Y-%m-%d')" || echo "No changes to commit"
+          git push

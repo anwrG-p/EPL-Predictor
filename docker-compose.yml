@@ -6,18 +6,16 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
       - ./backend/data:/app/data
       - ./backend/models_store:/app/models_store
     env_file:
       - .env
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Command is defined in Dockerfile (gunicorn)
 
   frontend:
     build: ./frontend
     ports:
-      - "3000:5173" # Vite default port mapped to 3000
-    volumes:
-      - ./frontend/src:/app/src
+      - "3000:80" # Map host 3000 to container 80 (Nginx)
     depends_on:
       - backend
+

@@ -3,9 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
+from typing import List
 import os
+import pandas as pd
 
-from . import models, schemas, auth, database, middleware
+from . import models, schemas, auth, database, middleware, utils
 from .config import settings
 from ml.engine import MLEngine
 
@@ -27,8 +29,6 @@ app.add_middleware(
 SHAP_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports", "shap")
 os.makedirs(SHAP_PATH, exist_ok=True)
 app.mount("/admin/shap", StaticFiles(directory=SHAP_PATH), name="shap")
-=== FILE: backend/app/main.py (SIMULATION ROUTES APPENDED) ===
-# ... existing imports and app setup ...
 
 # --- Simulation Routes ---
 @app.post("/simulate-match", response_model=schemas.SimulationMatchResponse)
@@ -66,7 +66,6 @@ def simulate_season_endpoint(
     results = utils.simulate_season(ml_engine, rounds=rounds)
     return results
 
-# ... existing admin routes ...
 # Initialize ML Engine
 ml_engine = MLEngine(model_type=settings.MODEL_TYPE)
 

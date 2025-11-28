@@ -1,16 +1,31 @@
-FROM python:3.11-slim
+# Stage 1: Build the React application
+FROM node:20-alpine as build
 
 WORKDIR /app
 
-# Install system dependencies for scipy/numpy compilation if needed
-RUN apt-get update && apt-get install -y git build-essential
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies
+RUN npm install
 
+# Copy the rest of the application code
 COPY . .
 
-# Environment variable to ensure outputs are flushed
-ENV PYTHONUNBUFFERED=1
+# Build the application
+RUN npm run build
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Stage 2: Serve the application with Nginx
+FROM nginx:alpine
+
+# Copy the build output from the previous stage
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Copy custom Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port 80
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]

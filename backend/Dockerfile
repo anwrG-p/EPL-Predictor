@@ -1,6 +1,6 @@
 # === Stage 1: Builder Stage ===
 # Use a full Python image for installing packages that might require compilation (like numpy, scipy, xgboost)
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -17,7 +17,7 @@ RUN apt-get update && \
 # Copy the requirements file and install dependencies
 # The log indicates this is the step that takes a long time and installs all packages
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 
 # ---
 # === Stage 2: Final Runtime Stage (Slim and Secure) ===
@@ -30,14 +30,11 @@ WORKDIR /app
 # Copy the core Python packages from the builder stage
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
+# Copy executables (including gunicorn, uvicorn) from the builder stage
+COPY --from=builder /usr/local/bin /usr/local/bin
+
 # Copy the application source code
 COPY . .
-
-# CRITICAL FIX for "gunicorn executable file not found in $PATH":
-# We must re-install the lightweight server packages in the final stage to ensure their
-# executable scripts (which reside in /usr/local/bin) are correctly generated and visible
-# in the final image's $PATH, preventing the Status 128 error.
-RUN pip install --no-cache-dir uvicorn gunicorn
 
 # --- Security and Permissions ---
 # Create a non-root user (appuser) for security best practices

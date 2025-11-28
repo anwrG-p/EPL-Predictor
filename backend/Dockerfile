@@ -1,47 +1,57 @@
-# Stage 1: Build Stage - Uses Python 3.11
+# === Stage 1: Builder Stage ===
+# Use a full Python image for installing packages that might require compilation (like numpy, scipy, xgboost)
 FROM python:3.11-slim as builder
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install ONLY the necessary system dependencies for compilation (build-essential, git).
-# We REMOVE 'python3-dev' to prevent installing Python 3.13 headers.
+# Install necessary system dependencies for package compilation
+# This includes tools needed to build some Python wheels (e.g., NumPy, SciPy)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
         gcc \
         g++ \
-        git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file and install dependencies
+# The log indicates this is the step that takes a long time and installs all packages
 COPY requirements.txt .
-# Pip will use the Python 3.11 interpreter from the base image, 
-# and the previously installed build tools will handle Pandas compilation.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ---
-# Stage 2: Final Runtime Stage - Uses a clean, smaller base image
+# === Stage 2: Final Runtime Stage (Slim and Secure) ===
+# Use a lean Python image for the final deployment to reduce image size
 FROM python:3.11-slim
 
 # Set the working directory
 WORKDIR /app
 
-# Copy only the installed packages from the builder stage
+# Copy the core Python packages from the builder stage
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy the application source code
 COPY . .
+
+# CRITICAL FIX for "gunicorn executable file not found in $PATH":
+# We must re-install the lightweight server packages in the final stage to ensure their
+# executable scripts (which reside in /usr/local/bin) are correctly generated and visible
+# in the final image's $PATH, preventing the Status 128 error.
 RUN pip install --no-cache-dir uvicorn gunicorn
-# Create a non-root user (appuser)
+
+# --- Security and Permissions ---
+# Create a non-root user (appuser) for security best practices
 RUN adduser --disabled-password --gecos "" appuser
-# Change ownership of the app directory to the new user
+# Change ownership of the application directory to the new non-root user
 RUN chown -R appuser:appuser /app
-# Switch to the new non-root user for all subsequent commands
+# Switch to the non-root user for all subsequent commands
 USER appuser
 
-# Expose the default port for Uvicorn
+# Expose the default port for Uvicorn/Gunicorn
 EXPOSE 8000
 
-# Command to run the FastAPI application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Set the environment variables for Uvicorn
+ENV PYTHONUNBUFFERED=1
+
+# Command to run the FastAPI application using Gunicorn and Uvicorn workers (production setup)
+CMD ["gunicorn", "app.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]

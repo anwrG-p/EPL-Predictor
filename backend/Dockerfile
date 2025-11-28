@@ -33,6 +33,13 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 # Copy the application source code
 COPY . .
 
+# Create a non-root user (appuser)
+RUN adduser --disabled-password --gecos "" appuser
+# Change ownership of the app directory to the new user
+RUN chown -R appuser:appuser /app
+# Switch to the new non-root user for all subsequent commands
+USER appuser
+
 # Expose the default port for Uvicorn
 EXPOSE 8000
 

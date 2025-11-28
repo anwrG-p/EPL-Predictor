@@ -1,0 +1,44 @@
+# Stage 1: Build Stage - Uses a stable Python version to avoid compilation issues
+FROM python:3.11-slim as builder
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Install necessary system dependencies for building scientific Python packages 
+# (e.g., pandas, numpy, scipy, etc., which often rely on C/C++ libraries).
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        gcc \
+        g++ \
+        python3-dev \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the requirements file and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ---
+# Stage 2: Final Runtime Stage - Uses a clean, smaller base image for security and size
+FROM python:3.11-slim
+
+# Set the working directory
+WORKDIR /app
+
+# Copy only the installed packages from the builder stage
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+
+# Copy the application source code (app, scripts, model artifact, etc.)
+# Note: Ensure your app directory, scripts directory, and model.pkl are in the backend directory
+COPY . .
+
+# Expose the default port for Uvicorn
+EXPOSE 8000
+
+# Set the environment variables for Uvicorn
+ENV PYTHONUNBUFFERED=1
+
+# Command to run the FastAPI application using Uvicorn
+# 'app.main:app' references the 'app' instance in 'app/main.py'
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

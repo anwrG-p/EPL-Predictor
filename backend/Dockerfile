@@ -32,7 +32,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 
 # Copy the application source code
 COPY . .
-
+RUN pip install --no-cache-dir uvicorn gunicorn
 # Create a non-root user (appuser)
 RUN adduser --disabled-password --gecos "" appuser
 # Change ownership of the app directory to the new user

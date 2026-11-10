@@ -1,21 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
-
-class UserCreate(BaseModel):
-    email: str
-    password: str
-
-class UserOut(BaseModel):
-    id: int
-    email: str
-    is_admin: bool
-    class Config:
-        from_attributes = True
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    is_admin: bool = False
+from typing import Dict, Any
 
 class PredictionRequest(BaseModel):
     home_team: str

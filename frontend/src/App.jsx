@@ -1,44 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import axios from 'axios';
 import Predictor from './components/Predictor.jsx';
-import Login from './components/Login.jsx';
-import Register from './components/Register.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
 import './index.css';
 
-// NOTE on API_URL: This must be your public backend URL.
-// Ensure this matches the URL you set in AdminPanel.jsx and Login.jsx.
-// For example: 'https://epl-predictor-api.com'
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-// Configure Axios defaults here to handle authentication and CORS
 axios.defaults.baseURL = API_URL;
-axios.defaults.withCredentials = true; // Important for handling cookies/CORS if needed
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('token') || null);
-  const [isAdmin, setIsAdmin] = useState(
-    localStorage.getItem('isAdmin') === 'true'
-  );
-
-  // Effect to update local storage whenever token or isAdmin changes
-  useEffect(() => {
-    if (token) {
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
-    }
-    localStorage.setItem('isAdmin', isAdmin);
-  }, [token, isAdmin]);
-
-  const handleLogout = () => {
-    setToken(null);
-    setIsAdmin(false);
-  };
-
   return (
     <Router>
       <div className="min-h-screen bg-dark-bg text-dark-text font-sans selection:bg-primary-500/30">
@@ -61,30 +31,12 @@ function App() {
               </Link>
 
               <nav className="flex items-center space-x-8">
-                {token ? (
-                  <>
-                    {isAdmin && (
-                      <Link to="/admin" className="text-sm font-medium text-dark-muted hover:text-white transition-colors">
-                        Admin Panel
-                      </Link>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      className="text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
-                    >
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <div className="flex items-center space-x-4">
-                    <Link to="/login" className="text-sm font-medium text-dark-muted hover:text-white transition-colors">
-                      Login
-                    </Link>
-                    <Link to="/register" className="btn-primary text-sm">
-                      Sign Up
-                    </Link>
-                  </div>
-                )}
+                <Link to="/" className="text-sm font-medium text-dark-muted hover:text-white transition-colors">
+                  Match Predictor
+                </Link>
+                <Link to="/admin" className="text-sm font-medium text-dark-muted hover:text-white transition-colors">
+                  Admin Panel
+                </Link>
               </nav>
             </div>
           </div>
@@ -94,19 +46,8 @@ function App() {
         <main className="relative z-10 pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           <div className="animate-fade-in">
             <Routes>
-              {/* Home Route */}
-              <Route path="/" element={<Predictor token={token} />} />
-
-              {/* Login Route */}
-              <Route path="/login" element={<Login setToken={setToken} setIsAdmin={setIsAdmin} />} />
-
-              {/* Register Route */}
-              <Route path="/register" element={<Register />} />
-
-              {/* Admin Route (Protected) */}
-              <Route path="/admin" element={<AdminPanel isAdmin={isAdmin} token={token} />} />
-
-              {/* Fallback/404 Route */}
+              <Route path="/" element={<Predictor />} />
+              <Route path="/admin" element={<AdminPanel />} />
               <Route path="*" element={
                 <div className="text-center py-20">
                   <h1 className="text-6xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-purple-400 mb-4">404</h1>

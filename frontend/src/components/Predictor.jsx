@@ -5,7 +5,7 @@ import axios from 'axios';
 // Shortened list for demo; in production fetch from backend
 const TEAMS = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Liverpool", "Luton", "Man City", "Man United", "Newcastle", "Nott'm Forest", "Sheffield United", "Tottenham", "West Ham", "Wolves"];
 
-export default function Predictor({ token }) {
+export default function Predictor() {
   const [home, setHome] = useState(TEAMS[0]);
   const [away, setAway] = useState(TEAMS[1]);
   const [result, setResult] = useState(null);
@@ -13,22 +13,14 @@ export default function Predictor({ token }) {
   const [loading, setLoading] = useState(false);
 
   const handlePredict = async () => {
-    if (!token) {
-      setError("Please login to make predictions.");
-      return;
-    }
     setError('');
     setResult(null);
     setLoading(true);
     try {
-      const res = await axios.post('/predict',
-        { home_team: home, away_team: away },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await axios.post('/predict', { home_team: home, away_team: away });
       setResult(res.data);
     } catch (err) {
-      if (err.response?.status === 429) setError("Daily limit reached! Upgrade to premium for more.");
-      else setError("Prediction failed. Please try again later.");
+      setError(err.response?.data?.detail || "Prediction failed. Please try again later.");
     } finally {
       setLoading(false);
     }

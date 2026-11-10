@@ -7,13 +7,13 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat&logo=Docker&logoColor=white)](https://www.docker.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A production-ready, full-stack machine learning platform engineered to predict English Premier League (EPL) football match outcomes with explainable AI (XAI) and Monte Carlo season simulation.
+A lightweight, production-ready full-stack machine learning platform engineered to predict English Premier League (EPL) football match outcomes with explainable AI (XAI) and Monte Carlo season simulation.
 
 ---
 
 ## 🏗️ Architecture Overview
 
-The platform uses a modular three-tier architecture connecting a responsive React SPA frontend to an asynchronous FastAPI backend and an MLOps pipeline.
+The platform uses a modular architecture connecting a responsive React SPA frontend to an asynchronous FastAPI backend and an MLOps pipeline.
 
 ```mermaid
 flowchart TD
@@ -23,7 +23,6 @@ flowchart TD
 
     subgraph Gateway["API & Application Layer"]
         API["FastAPI Gateway"]
-        Auth["JWT Auth & Rate Limiter"]
         Health["System & Admin Health Checks"]
     end
 
@@ -41,7 +40,6 @@ flowchart TD
     end
 
     UI -->|"HTTP / REST API"| API
-    API --> Auth
     API --> Health
     API --> Engine
     API --> Sim
@@ -49,7 +47,7 @@ flowchart TD
     Engine --> SHAP
     Engine --> Models
     FeatureEngine --> DataCache
-    Auth --> DB
+    API --> DB
     Sim --> Engine
 ```
 
@@ -57,14 +55,16 @@ flowchart TD
 
 ## ✨ Key Features
 
+- **Instant Match Predictions:** No login required. Anyone can instantly select EPL clubs and compute match outcome probabilities.
 - **Multi-Model Support:** Choose between **RandomForest**, **XGBoost**, **Logistic Regression**, or an **Ensemble Average** of all three.
 - **Dynamic Feature Engineering:** Computes dynamic Elo ratings and rolling team form (points per game, goals scored, goals conceded) from multi-season match histories.
 - **Explainable AI (XAI):** Integrated **SHAP** (SHapley Additive exPlanations) generates visual bar charts showing the exact feature contributions for each prediction.
 - **Monte Carlo Simulations:**
   - `/simulate-match`: Simulates probabilistic match outcomes across 100 iterations.
   - `/simulate-season`: Simulates remaining league fixtures across customizable rounds (up to 500) to project final standings.
-- **Security & Rate Limiting:** JWT-based user authentication with a built-in rate limit (30 requests/day per standard user) and admin bypass.
+- **Open Admin Tools:** Direct access to model retraining and health check endpoints for maintenance and demonstrations.
 - **Automated MLOps Retraining:** Scheduled GitHub Actions workflow retrains the model on fresh league data and commits updated model artifacts.
+- **Direct GitHub Pages Deployment:** Built and deployed automatically from the `main` branch via GitHub Actions.
 - **Extensible Agent Skills:** Includes 45 modular agent skills under `.agents/skills/` (featuring [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) and [mattpocock/skills](https://github.com/mattpocock/skills)).
 
 ---
@@ -86,7 +86,6 @@ Copy the example environment file:
 ```bash
 cp .env.example .env
 ```
-*(Optional: edit `.env` to set your custom `SECRET_KEY` and `ADMIN_EMAIL`)*
 
 ### 3. Launch Services
 ```bash
@@ -97,37 +96,30 @@ The services will be available at:
 - **Backend API:** [http://localhost:8000](http://localhost:8000)
 - **Interactive API Docs (Swagger):** [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### 4. Initialize Model & Admin User
-Run the setup commands inside the backend container:
+### 4. Train Initial Model
+Run the setup command inside the backend container:
 
 ```bash
-# 1. Train the initial ML model artifacts
 docker-compose exec backend python scripts/train_manual.py
-
-# 2. Create the administrator account
-docker-compose exec backend python scripts/create_admin.py --password YourSecurePassword123!
 ```
 
 ---
 
 ## 🌐 API Reference
 
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/register` | Public | Register a new user account |
-| `POST` | `/token` | Public | Obtain JWT bearer token (returns `access_token` and `is_admin`) |
-| `GET` | `/health` | Public | Service health check |
-| `POST` | `/predict` | Authenticated | Generate match outcome probabilities & SHAP explanation URL |
-| `POST` | `/simulate-match` | Authenticated | Run Monte Carlo match simulation (100 rounds) |
-| `GET` | `/simulate-season` | Authenticated | Run Monte Carlo season simulation (query param: `rounds`) |
-| `GET` | `/admin/health` | Admin | Health monitor for the Admin Panel dashboard |
-| `POST` | `/admin/retrain` | Admin | Trigger background model retraining pipeline |
-| `GET` | `/admin/stats` | Admin | View platform usage statistics |
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/health` | Service health check |
+| `GET` | `/admin/health` | Admin Panel health monitor |
+| `POST` | `/predict` | Generate match outcome probabilities & SHAP explanation URL |
+| `POST` | `/simulate-match` | Run Monte Carlo match simulation (100 rounds) |
+| `GET` | `/simulate-season` | Run Monte Carlo season simulation (query param: `rounds`) |
+| `POST` | `/admin/retrain` | Trigger model retraining pipeline |
+| `GET` | `/admin/stats` | View total prediction count |
 
 ### Prediction Request Example
 
-**POST** `/predict`  
-**Header:** `Authorization: Bearer <JWT_TOKEN>`
+**POST** `/predict`
 
 ```json
 {
@@ -164,12 +156,9 @@ docker-compose exec backend python scripts/create_admin.py --password YourSecure
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `SECRET_KEY` | `super_secure_random_string...` | Secret key used for signing JWT tokens |
-| `ALGORITHM` | `HS256` | JWT cryptographic algorithm |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | Token expiration period in minutes (default: 24h) |
 | `DATABASE_URL` | `sqlite:///./data/backend.db` | SQLAlchemy database connection URI |
-| `ADMIN_EMAIL` | `admin@email.com` | Email granted admin override and unlimited rate limits |
 | `MODEL_TYPE` | `ensemble` | Selected model: `rf`, `xgb`, `logreg`, or `ensemble` |
+| `OPTUNA_STUDY_NAME` | `epl_optimization` | Optuna hyperparameter study identifier |
 
 ---
 
@@ -177,11 +166,7 @@ docker-compose exec backend python scripts/create_admin.py --password YourSecure
 
 ### Backend Unit Tests
 ```bash
-# Using local Python environment
 pytest backend/tests
-
-# Or inside Docker
-docker-compose exec backend pytest tests
 ```
 
 ### Frontend Build

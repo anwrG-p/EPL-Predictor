@@ -1,20 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 
-const AdminPanel = ({ isAdmin, token }) => {
+const AdminPanel = () => {
   const [retrainStatus, setRetrainStatus] = useState('');
   const [healthStatus, setHealthStatus] = useState('Checking...');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
-  // Redirect if not logged in or not admin
-  useEffect(() => {
-    if (!token || !isAdmin) {
-      navigate('/login');
-    }
-  }, [isAdmin, token, navigate]);
 
   const handleRetrainModel = async () => {
     setRetrainStatus('Training...');
@@ -22,10 +13,7 @@ const AdminPanel = ({ isAdmin, token }) => {
     setLoading(true);
     try {
       const response = await axios.post('/admin/retrain', null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        timeout: 600000, // 10 minutes timeout for long training process
+        timeout: 600000,
       });
       setRetrainStatus(`Training Complete! ${response.data.message}`);
     } catch (err) {
@@ -39,27 +27,17 @@ const AdminPanel = ({ isAdmin, token }) => {
 
   const checkSystemHealth = async () => {
     try {
-      const response = await axios.get('/admin/health', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get('/admin/health');
       setHealthStatus(response.data.status);
     } catch (err) {
       console.error(err);
-      setHealthStatus('System Down or Unauthorized');
+      setHealthStatus('System Down or Unavailable');
     }
   };
 
   useEffect(() => {
-    if (isAdmin && token) {
-      checkSystemHealth();
-    }
-  }, [isAdmin, token]);
-
-  if (!isAdmin) {
-    return null;
-  }
+    checkSystemHealth();
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">

@@ -24,15 +24,6 @@ jobs:
         run: |
           pip install -r backend/requirements.txt
 
-      - name: Configure Admin Secrets (for environment access)
-        run: |
-          echo "SECRET_KEY=${{ secrets.SECRET_KEY || secrets.FASTAPI_SECRET_KEY }}" >> .env
-          echo "FASTAPI_SECRET_KEY=${{ secrets.FASTAPI_SECRET_KEY }}" >> .env
-          echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> .env
-          echo "MODEL_TYPE=${{ secrets.MODEL_TYPE }}" >> .env
-        shell: bash
-        working-directory: ./backend
-
       - name: Run Retraining Script
         env:
           DATABASE_URL: "sqlite:///./data/backend.db"

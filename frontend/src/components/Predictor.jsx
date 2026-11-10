@@ -1,138 +1,307 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-
-// Shortened list for demo; in production fetch from backend
-const TEAMS = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Liverpool", "Luton", "Man City", "Man United", "Newcastle", "Nott'm Forest", "Sheffield United", "Tottenham", "West Ham", "Wolves"];
+import { TEAM_NAMES, calculatePrediction } from '../data/eplData.js';
 
 export default function Predictor() {
-  const [home, setHome] = useState(TEAMS[0]);
-  const [away, setAway] = useState(TEAMS[1]);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
+  const [home, setHome] = useState("Arsenal");
+  const [away, setAway] = useState("Man City");
+  const [prediction, setPrediction] = useState(() => calculatePrediction("Arsenal", "Man City"));
   const [loading, setLoading] = useState(false);
 
-  const handlePredict = async () => {
-    setError('');
-    setResult(null);
+  // Compute prediction whenever home/away changes
+  useEffect(() => {
+    let isMounted = true;
     setLoading(true);
-    try {
-      const res = await axios.post('/predict', { home_team: home, away_team: away });
-      setResult(res.data);
-    } catch (err) {
-      setError(err.response?.data?.detail || "Prediction failed. Please try again later.");
-    } finally {
-      setLoading(false);
+
+    const clientPred = calculatePrediction(home, away);
+
+    // Try live API backend, fallback gracefully to client calculations
+    axios.post('/predict', { home_team: home, away_team: away }, { timeout: 2500 })
+      .then(res => {
+        if (!isMounted) return;
+        const data = res.data;
+        if (data && data.probs) {
+          const homeP = Math.round((data.probs.Home || 0.46) * 100);
+          const drawP = Math.round((data.probs.Draw || 0.27) * 100);
+          const awayP = 100 - homeP - drawP;
+
+          setPrediction({
+            ...clientPred,
+            probs: { Home: homeP, Draw: drawP, Away: awayP },
+            shapUrl: data.shap_url ? `${axios.defaults.baseURL || ''}${data.shap_url}` : null
+          });
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setPrediction(clientPred);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [home, away]);
+
+  const handleHomeChange = (e) => {
+    const val = e.target.value;
+    if (val === away) {
+      const alt = TEAM_NAMES.find(t => t !== val && t !== home) || "Liverpool";
+      setAway(alt);
     }
+    setHome(val);
   };
 
-  const ProbabilityBar = ({ label, value, color }) => (
-    <div className="mb-4">
-      <div className="flex justify-between mb-1">
-        <span className="text-sm font-medium text-gray-300">{label}</span>
-        <span className="text-sm font-bold text-white">{(value * 100).toFixed(1)}%</span>
-      </div>
-      <div className="w-full bg-dark-bg rounded-full h-2.5">
-        <div
-          className={`h-2.5 rounded-full ${color} transition-all duration-1000 ease-out`}
-          style={{ width: `${value * 100}%` }}
-        ></div>
-      </div>
-    </div>
-  );
+  const handleAwayChange = (e) => {
+    const val = e.target.value;
+    if (val === home) {
+      const alt = TEAM_NAMES.find(t => t !== val && t !== away) || "Arsenal";
+      setHome(alt);
+    }
+    setAway(val);
+  };
+
+  const swapTeams = () => {
+    setHome(away);
+    setAway(home);
+  };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="text-center mb-12 animate-slide-up">
-        <h1 className="text-5xl font-display font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-primary-200">
-          Match Predictor
-        </h1>
-        <p className="text-dark-muted text-lg">
-          AI-powered insights for the English Premier League
-        </p>
-      </div>
-
-      <div className="glass-card p-8 mb-8 animate-fade-in">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-
-          {/* Home Team Selection */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-primary-300 uppercase tracking-wider">Home Team</label>
-            <select
-              className="input-field appearance-none cursor-pointer"
-              value={home}
-              onChange={e => setHome(e.target.value)}
-            >
-              {TEAMS.map(t => <option key={t} value={t} className="bg-dark-card text-white">{t}</option>)}
-            </select>
-          </div>
-
-          {/* VS Badge */}
-          <div className="hidden md:flex justify-center items-center">
-            <div className="w-12 h-12 rounded-full bg-primary-600/20 flex items-center justify-center border border-primary-500/30">
-              <span className="text-primary-400 font-bold text-sm">VS</span>
-            </div>
-          </div>
-
-          {/* Away Team Selection */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-red-400 uppercase tracking-wider">Away Team</label>
-            <select
-              className="input-field appearance-none cursor-pointer"
-              value={away}
-              onChange={e => setAway(e.target.value)}
-            >
-              {TEAMS.map(t => <option key={t} value={t} className="bg-dark-card text-white">{t}</option>)}
-            </select>
+    <div className="space-y-6 animate-fade-in">
+      {/* Match Hero Card */}
+      <section className="card grid grid-cols-1 md:grid-cols-3 gap-6 items-center text-center">
+        {/* Home Team */}
+        <div>
+          <label className="mut uppercase tracking-wider font-semibold block text-xs" htmlFor="h">
+            Home Team
+          </label>
+          <select
+            id="h"
+            value={home}
+            onChange={handleHomeChange}
+            className="custom-select w-full mt-2 font-medium"
+          >
+            {TEAM_NAMES.map(t => (
+              <option key={t} value={t} disabled={t === away}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <h2 className="text-3xl sm:text-4xl font-heading font-bold text-[#E8EFE9] mt-4">
+            {home}
+          </h2>
+          <div className="mut mt-1">
+            Form {prediction.homeForm.join(' ')}
           </div>
         </div>
 
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={handlePredict}
-            disabled={loading}
-            className={`btn-primary w-full md:w-auto min-w-[200px] flex justify-center items-center ${loading ? 'opacity-75 cursor-not-allowed' : ''}`}
+        {/* Center Match Display */}
+        <div className="py-2">
+          <div className="mut text-xs sm:text-sm font-medium">
+            Matchweek 28 · Saturday 15:00
+          </div>
+          <div
+            className={`text-6xl sm:text-7xl font-heading font-bold text-[#C6F432] my-2 tracking-tight transition-opacity ${
+              loading ? 'opacity-50' : 'opacity-100'
+            }`}
           >
-            {loading ? (
-              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : 'Predict Outcome'}
+            {prediction.predictedScore}
+          </div>
+          <div className="mut text-xs sm:text-sm">
+            Predicted scoreline · xG {prediction.xGHome} – {prediction.xGAway}
+          </div>
+
+          <button
+            onClick={swapTeams}
+            title="Swap Home/Away"
+            className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#9DB0A5] hover:text-[#C6F432] transition-colors py-1 px-3 rounded-full border border-[#26352D] hover:border-[#3E5348]"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            <span>Swap Venue</span>
           </button>
         </div>
 
-        {error && (
-          <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 text-red-200 rounded-lg text-center animate-fade-in">
-            {error}
-          </div>
-        )}
-      </div>
-
-      {result && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-slide-up">
-          {/* Probabilities Card */}
-          <div className="glass-card p-6">
-            <h2 className="text-2xl font-display font-bold mb-6 text-white border-b border-white/10 pb-2">Match Probabilities</h2>
-            <div className="space-y-6">
-              <ProbabilityBar label={`${home} Win`} value={result.probs.Home} color="bg-primary-500" />
-              <ProbabilityBar label="Draw" value={result.probs.Draw} color="bg-gray-400" />
-              <ProbabilityBar label={`${away} Win`} value={result.probs.Away} color="bg-red-500" />
-            </div>
-          </div>
-
-          {/* Explainability Card */}
-          <div className="glass-card p-6">
-            <h2 className="text-2xl font-display font-bold mb-6 text-white border-b border-white/10 pb-2">AI Analysis</h2>
-            <div className="bg-white/5 rounded-lg p-2 border border-white/10">
-              <img src={`http://localhost:8000${result.shap_url}`} alt="SHAP Plot" className="w-full rounded opacity-90 hover:opacity-100 transition-opacity" />
-            </div>
-            <p className="mt-4 text-sm text-dark-muted text-center">
-              Feature importance showing key factors influencing the prediction.
-            </p>
+        {/* Away Team */}
+        <div>
+          <label className="mut uppercase tracking-wider font-semibold block text-xs" htmlFor="a">
+            Away Team
+          </label>
+          <select
+            id="a"
+            value={away}
+            onChange={handleAwayChange}
+            className="custom-select w-full mt-2 font-medium"
+          >
+            {TEAM_NAMES.map(t => (
+              <option key={t} value={t} disabled={t === home}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <h2 className="text-3xl sm:text-4xl font-heading font-bold text-[#E8EFE9] mt-4">
+            {away}
+          </h2>
+          <div className="mut mt-1">
+            Form {prediction.awayForm.join(' ')}
           </div>
         </div>
-      )}
+      </section>
+
+      {/* Outcome Probabilities Card */}
+      <section className="card">
+        <h3 className="text-xl font-heading font-bold text-[#E8EFE9] mb-5">
+          Outcome probabilities
+        </h3>
+
+        {/* Segmented Bar */}
+        <div className="flex gap-1.5 overflow-hidden">
+          <div
+            className="bar bg-[#C6F432]"
+            style={{ width: `${prediction.probs.Home}%` }}
+            title={`${home} win: ${prediction.probs.Home}%`}
+          />
+          <div
+            className="bar bg-[#3E5348]"
+            style={{ width: `${prediction.probs.Draw}%` }}
+            title={`Draw: ${prediction.probs.Draw}%`}
+          />
+          <div
+            className="bar bg-[#8FA8FF]"
+            style={{ width: `${prediction.probs.Away}%` }}
+            title={`${away} win: ${prediction.probs.Away}%`}
+          />
+        </div>
+
+        {/* Probabilities Legend */}
+        <div className="flex justify-between items-center mt-3 text-sm sm:text-base flex-wrap gap-2">
+          <span>
+            <b className="text-[#C6F432] font-mono text-lg">{prediction.probs.Home}%</b>{' '}
+            <span className="text-[#E8EFE9]">{home} win</span>
+          </span>
+          <span>
+            <b className="text-[#E8EFE9] font-mono text-lg">{prediction.probs.Draw}%</b>{' '}
+            <span className="text-[#9DB0A5]">Draw</span>
+          </span>
+          <span>
+            <b className="text-[#8FA8FF] font-mono text-lg">{prediction.probs.Away}%</b>{' '}
+            <span className="text-[#E8EFE9]">{away} win</span>
+          </span>
+        </div>
+      </section>
+
+      {/* 2-Column Section: SHAP Drivers & Recent Form/Ensemble */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Driving Factors (SHAP) Card */}
+        <section className="card flex flex-col justify-between">
+          <div>
+            <h3 className="text-xl font-heading font-bold text-[#E8EFE9]">
+              What drives this prediction
+            </h3>
+            <p className="mut mt-1 mb-4">
+              SHAP impact on {home} win probability
+            </p>
+
+            <div className="space-y-1">
+              {prediction.shapFactors.map((factor) => {
+                const isHomePush = factor.direction === 'home';
+                return (
+                  <div key={factor.name} className="row-item">
+                    <span className="text-[#E8EFE9]">{factor.name}</span>
+                    <div className="w-full flex justify-end">
+                      <div
+                        className={`bar ${isHomePush ? 'bg-[#C6F432]' : 'bg-[#8FA8FF]'}`}
+                        style={{ width: `${factor.impact}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <p className="mut mt-6 pt-3 border-t border-[#26352D] text-xs">
+            Lime pushes toward the home side, blue toward the away side.
+          </p>
+        </section>
+
+        {/* Recent Form & Model Ensemble Card */}
+        <section className="card">
+          <h3 className="text-xl font-heading font-bold text-[#E8EFE9] mb-4">
+            Recent form
+          </h3>
+
+          <div className="space-y-3">
+            {/* Home Form */}
+            <div className="flex items-center gap-2">
+              <span className="w-24 text-sm font-medium text-[#E8EFE9] truncate">
+                {home}
+              </span>
+              <div className="flex gap-1.5">
+                {prediction.homeForm.map((result, i) => (
+                  <span
+                    key={i}
+                    className={`chip ${
+                      result === 'W'
+                        ? 'bg-[#C6F432] text-[#0E1512]'
+                        : result === 'D'
+                        ? 'bg-[#3E5348] text-[#E8EFE9]'
+                        : 'bg-[#8FA8FF] text-[#0E1512]'
+                    }`}
+                  >
+                    {result}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Away Form */}
+            <div className="flex items-center gap-2">
+              <span className="w-24 text-sm font-medium text-[#E8EFE9] truncate">
+                {away}
+              </span>
+              <div className="flex gap-1.5">
+                {prediction.awayForm.map((result, i) => (
+                  <span
+                    key={i}
+                    className={`chip ${
+                      result === 'W'
+                        ? 'bg-[#C6F432] text-[#0E1512]'
+                        : result === 'D'
+                        ? 'bg-[#3E5348] text-[#E8EFE9]'
+                        : 'bg-[#8FA8FF] text-[#0E1512]'
+                    }`}
+                  >
+                    {result}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Model Ensemble */}
+          <h3 className="text-xl font-heading font-bold text-[#E8EFE9] mt-8 mb-3">
+            Model ensemble
+          </h3>
+
+          <div>
+            {prediction.ensemble.map(model => (
+              <div key={model.name} className="row-item">
+                <span className="text-[#E8EFE9]">{model.name}</span>
+                <span className="mut text-right font-mono">weight {model.weight}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <p className="mut text-center text-xs">
+        Statistical analytics & probabilistic machine learning calibrated for Premier League matchweeks.
+      </p>
     </div>
   );
 }

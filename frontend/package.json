@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://anwrg-p.github.io/EPL-Predictor/frontend",
+  "homepage": "https://anwrg-p.github.io/EPL-Predictor",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

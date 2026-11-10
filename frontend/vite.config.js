@@ -6,8 +6,8 @@ import { builtinModules } from 'module'; // Needed to fix Node module resolution
 const env = loadEnv('', process.cwd(), 'VITE_');
 
 export default defineConfig({
-  // Base path for asset loading (use "/" for Docker, "/EPL-Predictor/" for GitHub Pages)
-  base: "/", 
+  // Base path for asset loading: relative './' works for both Docker (/) and GitHub Pages (/EPL-Predictor/)
+  base: "./", 
   
   plugins: [react()],
   server: {

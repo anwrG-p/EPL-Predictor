@@ -1,4 +1,3 @@
-=== FILE: .gitignore ===
 # Project structure
 /backend/models_store/
 /backend/data/*.csv
@@ -11,6 +10,8 @@
 # Python
 *.pyc
 venv/
+.venv/
+backend/.venv/
 .env
 
 # Node

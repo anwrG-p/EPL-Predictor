@@ -23,9 +23,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r backend/requirements.txt
-      
+
       - name: Configure Admin Secrets (for environment access)
         run: |
+          echo "SECRET_KEY=${{ secrets.SECRET_KEY || secrets.FASTAPI_SECRET_KEY }}" >> .env
           echo "FASTAPI_SECRET_KEY=${{ secrets.FASTAPI_SECRET_KEY }}" >> .env
           echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> .env
           echo "MODEL_TYPE=${{ secrets.MODEL_TYPE }}" >> .env
@@ -33,10 +34,9 @@ jobs:
         working-directory: ./backend
 
       - name: Run Retraining Script
-        # Pass essential environment variables
         env:
-          DATABASE_URL: "sqlite:///backend/backend.db"
-          MODEL_TYPE: "${{ secrets.MODEL_TYPE }}"
+          DATABASE_URL: "sqlite:///./data/backend.db"
+          MODEL_TYPE: "${{ secrets.MODEL_TYPE || 'ensemble' }}"
         run: |
           cd backend
           python scripts/train_manual.py
@@ -45,9 +45,8 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # Stage and commit updated artifacts
-          git add backend/models_store/*.pkl
-          git add backend/data/*.csv
-          git add backend/reports/shap/*.png
-          git commit -m "Auto-update: Retrained ${{ secrets.MODEL_TYPE }} model and data $(date +'%Y-%m-%d')" || echo "No changes to commit"
+          git add backend/models_store/*.pkl || true
+          git add backend/data/*.csv || true
+          git add backend/reports/shap/*.png || true
+          git commit -m "Auto-update: Retrained model and data $(date +'%Y-%m-%d')" || echo "No changes to commit"
           git push

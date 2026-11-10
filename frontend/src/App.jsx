@@ -10,7 +10,7 @@ import './index.css';
 // NOTE on API_URL: This must be your public backend URL.
 // Ensure this matches the URL you set in AdminPanel.jsx and Login.jsx.
 // For example: 'https://epl-predictor-api.com'
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Configure Axios defaults here to handle authentication and CORS
 axios.defaults.baseURL = API_URL;

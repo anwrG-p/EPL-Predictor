@@ -8,14 +8,13 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./backend/models_store:/app/models_store
+      - ./backend/reports/shap:/app/reports/shap
     env_file:
       - .env
-    # Command is defined in Dockerfile (gunicorn)
 
   frontend:
     build: ./frontend
     ports:
-      - "3000:80" # Map host 3000 to container 80 (Nginx)
+      - "3000:80"
     depends_on:
       - backend
-

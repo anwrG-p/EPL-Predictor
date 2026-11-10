@@ -15,6 +15,7 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    is_admin: bool = False
 
 class PredictionRequest(BaseModel):
     home_team: str
@@ -24,6 +25,7 @@ class PredictionResponse(BaseModel):
     probs: Dict[str, float]
     shap_url: str
     features: Dict[str, Any]
+
 class SimulationMatchResponse(BaseModel):
     home_team: str
     away_team: str

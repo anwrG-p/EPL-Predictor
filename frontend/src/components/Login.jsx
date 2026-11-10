@@ -31,13 +31,9 @@ export default function Login({ setToken, setIsAdmin }) {
       // Check if admin (optional: you might want to fetch user details here)
       // For now, let's assume the backend might return this or we fetch it separately
       // But to keep it simple and consistent with previous logic:
-      if (email === 'admin@email.com') {
-        localStorage.setItem('isAdmin', 'true');
-        setIsAdmin(true);
-      } else {
-        localStorage.setItem('isAdmin', 'false');
-        setIsAdmin(false);
-      }
+      const isAdminUser = Boolean(res.data.is_admin);
+      localStorage.setItem('isAdmin', isAdminUser ? 'true' : 'false');
+      setIsAdmin(isAdminUser);
 
       navigate('/');
     } catch (err) {
